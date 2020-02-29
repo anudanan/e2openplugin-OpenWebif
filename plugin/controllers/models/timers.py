@@ -13,7 +13,7 @@ from enigma import eEPGCache, eServiceReference
 from Components.UsageConfig import preferredTimerPath, preferredInstantRecordPath
 from Components.config import config
 from Components.TimerSanityCheck import TimerSanityCheck
-from RecordTimer import RecordTimerEntry, RecordTimer, parseEvent, AFTEREVENT
+from RecordTimer import RecordTimerEntry, RecordTimer, parseEvent
 from ServiceReference import ServiceReference
 from time import time, strftime, localtime, mktime
 from urllib import unquote
@@ -90,6 +90,13 @@ def getTimers(session):
 				always_zap = 1
 			else:
 				always_zap = 0
+		
+		isAutoTimer = -1
+		if hasattr(timer, "isAutoTimer"):
+			if timer.isAutoTimer:
+				isAutoTimer = 1
+			else:
+				isAutoTimer = 0
 
 		timers.append({
 			"serviceref": str(timer.service_ref),
@@ -124,7 +131,8 @@ def getTimers(session):
 			"vpsplugin_enabled": vpsplugin_enabled,
 			"vpsplugin_overwrite": vpsplugin_overwrite,
 			"vpsplugin_time": vpsplugin_time,
-			"always_zap": always_zap
+			"always_zap": always_zap,
+			"isAutoTimer": isAutoTimer
 		})
 
 	return {
@@ -202,7 +210,7 @@ def addTimer(session, serviceref, begin, end, name, description, disabled, justp
 	}
 
 
-def addTimerByEventId(session, eventid, serviceref, justplay, dirname, tags, vpsinfo, always_zap):
+def addTimerByEventId(session, eventid, serviceref, justplay, dirname, tags, vpsinfo, always_zap, afterevent):
 	event = eEPGCache.getInstance().lookupEventId(eServiceReference(serviceref), eventid)
 	if event is None:
 		return {
@@ -211,6 +219,11 @@ def addTimerByEventId(session, eventid, serviceref, justplay, dirname, tags, vps
 		}
 
 	(begin, end, name, description, eit) = parseEvent(event)
+
+	if justplay:
+		begin += config.recording.margin_before.value * 60
+		end = begin + 1
+
 	return addTimer(
 		session,
 		serviceref,
@@ -220,10 +233,10 @@ def addTimerByEventId(session, eventid, serviceref, justplay, dirname, tags, vps
 		description,
 		False,
 		justplay,
-		AFTEREVENT.AUTO,
+		afterevent,
 		dirname,
 		tags,
-		False,
+		0,
 		vpsinfo,
 		None,
 		eit,

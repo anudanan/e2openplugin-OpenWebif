@@ -319,6 +319,10 @@ def getAllInfo():
 		elif procmodel =="hd60":
 			brand ="Mut@nt"
 			model = "HD60"
+		elif procmodel =="multibox":
+			brand ="MaXytec"
+			model = "Multibox"
+			grabpip = 1
 		elif procmodel == "arivalink200":
 			brand = "Ferguson"
 			model = "Ariva @Link 200"
@@ -349,6 +353,9 @@ def getAllInfo():
 		elif procmodel == "vipercombohdd":
 			brand = "Amiko"
 			model = "ViperComboHDD"
+                elif procmodel == "viperslim":
+                        brand = "Amiko"
+                        model = "Viper Slim"
 		elif procmodel == "wetekplay":
 			brand = "WeTeK"
 			model = "Play"
@@ -368,6 +375,12 @@ def getAllInfo():
 				model = "OS Nino Pro"
 			elif procmodel == "osmio4k":
 				model = "OS Mio 4K"
+				grabpip = 1
+			elif procmodel == "osmio4kplus":
+				model = "OS Mio 4K+"
+				grabpip = 1
+			elif procmodel == "osmini4k":
+				model = "OS Mini 4K"
 				grabpip = 1
 			else:
 				model = procmodel
@@ -403,6 +416,9 @@ def getAllInfo():
 		elif procmodel == "i55plus":
 			brand = "Zgemma"
 			model = "i55Plus"
+		elif procmodel == "h9combo":
+			brand = "Zgemma"
+			model = "H9Combo"
 		elif procmodel == "vs1500":
 			brand = "Vimastec"
 			model = "vs1500"
@@ -573,6 +589,8 @@ def getAllInfo():
 		remote = "hd2400"
 	elif procmodel == "hd60":
 		remote = "hd60"
+	elif procmodel == "multibox":
+		remote = "multibox"	
 	elif procmodel in ("spycat", "spycatmini", "spycatminiplus", "spycat4kmini"):
 		remote = "spycat"
 	elif procmodel.startswith("ixuss"):
@@ -585,7 +603,7 @@ def getAllInfo():
 		remote = "dmm2"
 	elif procmodel == "wetekplay":
 		remote = procmodel
-	elif procmodel.startswith("osmio"):
+	elif procmodel.startswith("osm") and "4k" in procmodel:
 		remote = "edision4"
 	elif procmodel.startswith("osm"):
 		remote = "osmini"
@@ -611,7 +629,7 @@ def getAllInfo():
 		remote = "lunix4k"
 	elif procmodel in ("sh1", "lc"):
 		remote = "sh1"
-	elif procmodel in ("h3", "h4", "h5", "h6", "h7", "h9", "i55plus"):
+	elif procmodel in ("h3", "h4", "h5", "h6", "h7", "h9", "i55plus", "h9combo"):
 		remote = "h3"
 	elif procmodel == "i55":
 		remote = "i55"
@@ -619,7 +637,9 @@ def getAllInfo():
 		remote = "amiko"
 	elif procmodel in ("vipercombohdd"):
 		remote = "amiko1"
-	elif procmodel.startswith("sf"):
+        elif procmodel == "viperslim":
+                remote = "viperslim"
+        elif procmodel.startswith("sf"):
 		remote = "octagon"
 	elif procmodel in ("vs1100", "vs1500"):
 		remote = "vs1x00"

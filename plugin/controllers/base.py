@@ -235,23 +235,35 @@ class BaseController(resource.Resource):
 	def oscamconfPath(self):
 		# Find and parse running oscam
 		opath = None
-		owebif = None
+		owebif = False
 		oport = None
-		if fileExists("/tmp/.oscam/oscam.version"):  # nosec
-			data = open("/tmp/.oscam/oscam.version", "r").readlines()  # nosec
-			for i in data:
-				if "configdir:" in i.lower():
-					opath = i.split(":")[1].strip() + "/oscam.conf"
-				elif "web interface support:" in i.lower():
-					owebif = i.split(":")[1].strip()
-				elif "webifport:" in i.lower():
-					oport = i.split(":")[1].strip()
+		variant = "oscam"
+		for file in ["/tmp/.ncam/ncam.version", "/tmp/.oscam/oscam.version"]:
+			if fileExists(file):  # nosec
+				if "ncam" in file:
+					variant = "ncam"
 				else:
-					continue
-		if owebif == "yes" and oport is not "0" and opath is not None:
-			if fileExists(opath):
-				return opath
-		return None
+					variant = "oscam"
+
+				conffile = file.split('/')[-1].replace("version","conf")
+
+				data = open(file, "r").readlines()  # nosec
+				for i in data:
+					if "configdir:" in i.lower():
+						opath = i.split(":")[1].strip() + "/" + conffile
+						if not fileExists(opath):
+							opath = None
+					elif "web interface support:" in i.lower():
+						owebif = i.split(":")[1].strip()
+						if owebif == "yes":
+							owebif = True
+					elif "webifport:" in i.lower():
+						oport = i.split(":")[1].strip()
+						if oport == "0":
+							oport = None
+					else:
+						continue
+		return owebif, oport, opath, variant
 
 	def prepareMainTemplate(self, request):
 		# here will be generated the dictionary for the main template
@@ -272,33 +284,43 @@ class BaseController(resource.Resource):
 		ifaces = iNetwork.getConfiguredAdapters()
 		if len(ifaces):
 			ip_list = iNetwork.getAdapterAttribute(ifaces[0], "ip")  # use only the first configured interface
-			ip = "%d.%d.%d.%d" % (ip_list[0], ip_list[1], ip_list[2], ip_list[3])
+			if ip_list:
+				ip = "%d.%d.%d.%d" % (ip_list[0], ip_list[1], ip_list[2], ip_list[3])
 
-			if fileExists(resolveFilename(SCOPE_PLUGINS, "Extensions/LCD4linux/WebSite.pyo")):
-				lcd4linux_key = "lcd4linux/config"
-				if fileExists(resolveFilename(SCOPE_PLUGINS, "Extensions/WebInterface/plugin.pyo")):
-					try:
-						lcd4linux_port = "http://" + ip + ":" + str(config.plugins.Webinterface.http.port.value) + "/"
-						lcd4linux_key = lcd4linux_port + 'lcd4linux/config'
-					except:  # noqa: E722
-						lcd4linux_key = None
-				if lcd4linux_key:
-					extras.append({'key': lcd4linux_key, 'description': _("LCD4Linux Setup"), 'nw': '1'})
+				if fileExists(resolveFilename(SCOPE_PLUGINS, "Extensions/LCD4linux/WebSite.pyo")):
+					lcd4linux_key = "lcd4linux/config"
+					if fileExists(resolveFilename(SCOPE_PLUGINS, "Extensions/WebInterface/plugin.pyo")):
+						try:
+							lcd4linux_port = "http://" + ip + ":" + str(config.plugins.Webinterface.http.port.value) + "/"
+							lcd4linux_key = lcd4linux_port + 'lcd4linux/config'
+						except:  # noqa: E722
+							lcd4linux_key = None
+					if lcd4linux_key:
+						extras.append({'key': lcd4linux_key, 'description': _("LCD4Linux Setup"), 'nw': '1'})
 
-		self.oscamconf = self.oscamconfPath()
-		if self.oscamconf is not None:
-			data = open(self.oscamconf, "r").readlines()
-			proto = "http"
+		oscamwebif, port, oscamconf, variant = self.oscamconfPath()
+
+		# Assume http until we know better ...
+		proto = "http"
+
+		# config file exists
+		if oscamwebif and oscamconf is not None:
+			# oscam defaults to NOT to start the web interface unless a section for it exists, so reset port to None until we find one
 			port = None
+			data = open(oscamconf, "r").readlines()
 			for i in data:
 				if "httpport" in i.lower():
 					port = i.split("=")[1].strip()
 					if port[0] == '+':
 						proto = "https"
 						port = port[1:]
-			if port is not None:
-				url = "%s://%s:%s" % (proto, request.getRequestHostname(), port)
+
+		if oscamwebif and port is not None:
+			url = "%s://%s:%s" % (proto, request.getRequestHostname(), port)
+			if variant == "oscam":
 				extras.append({'key': url, 'description': _("OSCam Webinterface"), 'nw': '1'})
+			elif variant == "ncam":
+				extras.append({'key': url, 'description': _("NCam Webinterface"), 'nw': '1'})
 
 		try:
 			from Plugins.Extensions.AutoTimer.AutoTimer import AutoTimer  # noqa: F401

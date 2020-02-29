@@ -519,7 +519,9 @@ class WebController(BaseController):
 
 		request.setHeader('Content-Type', 'application/x-mpegurl')
 		if "bName" in request.args.keys():
-			request.setHeader('Content-Disposition', 'inline; filename=%s.%s;' % (request.args["bName"][0], 'm3u8'))
+			bname = request.args["bName"][0]
+			bname = bname.replace(",","_").replace(";","_")
+			request.setHeader('Content-Disposition', 'inline; filename=%s.%s;' % (bname, 'm3u8'))
 		services = getServices(bRef, False)
 		if comp_config.OpenWebif.auth_for_streaming.value:
 			session = GetSession()
@@ -873,7 +875,7 @@ class WebController(BaseController):
 	def P_movieinfo(self, request):
 		"""
 		Request handler for the `movie` endpoint.
-		Add/Remove tags to movie file.
+		Add/Remove tags to movie file. Multiple tags needs to separate by ,
 		Remame title of movie.
 		Get/set movie cuts.
 
@@ -1013,7 +1015,7 @@ class WebController(BaseController):
 			justplay = request.args["justplay"][0] == "1"
 
 		afterevent = 3
-		if "afterevent" in request.args.keys() and request.args["afterevent"][0] in ["1", "2", "3"]:
+		if "afterevent" in request.args.keys() and request.args["afterevent"][0] in ["0", "1", "2", "3"]:
 			afterevent = int(request.args["afterevent"][0])
 
 		dirname = None
@@ -1087,6 +1089,7 @@ class WebController(BaseController):
 			:query string dirname: target path(?)
 			:query string tags: tags to add(?)
 			:query int always_zap: always zap first(?)
+			:query int afterevent: afterevent state
 		"""
 		res = self.testMandatoryArguments(request, ["sRef", "eventid"])
 		if res:
@@ -1116,6 +1119,10 @@ class WebController(BaseController):
 		if "always_zap" in request.args.keys():
 			always_zap = int(request.args["always_zap"][0])
 
+		afterevent = 3
+		if "afterevent" in request.args.keys() and request.args["afterevent"][0] in ["0", "1", "2", "3"]:
+			afterevent = int(request.args["afterevent"][0])
+
 		return addTimerByEventId(
 			self.session,
 			eventid,
@@ -1124,7 +1131,8 @@ class WebController(BaseController):
 			dirname,
 			tags,
 			self.vpsparams(request),
-			always_zap
+			always_zap,
+			afterevent
 		)
 
 	def P_timerchange(self, request):

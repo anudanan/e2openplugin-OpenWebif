@@ -414,6 +414,8 @@ def getChannels(idbouquet, stype):
 		if chan['ref'].split(":")[1] == '320':  # Hide hidden number markers
 			continue
 		chan['name'] = filterName(channel[1])
+		if chan['ref'].split(":")[0] == '5002':  # BAD fix !!! this needs to fix in enigma2 !!!
+			chan['name'] = chan['ref'].split(":")[-1]
 		if not int(channel[0].split(":")[1]) & 64:
 			psref = parse_servicereference(channel[0])
 			chan['service_type'] = SERVICE_TYPE_LOOKUP.get(psref.get('service_type'), "UNKNOWN")
@@ -467,8 +469,15 @@ def getServices(sRef, showAll=True, showHidden=False, pos=0, provider=False, pic
 	services = []
 	allproviders = {}
 
+	CalcPos = False
+
 	if sRef == "":
 		sRef = '%s FROM BOUQUET "bouquets.tv" ORDER BY bouquet' % (service_types_tv)
+		CalcPos = True
+	elif ' "bouquets.radio" ' in sRef:
+		CalcPos = True
+	elif ' "bouquets.tv" ' in sRef:
+		CalcPos = True
 
 	if provider:
 		s_type = service_types_tv
@@ -487,16 +496,36 @@ def getServices(sRef, showAll=True, showHidden=False, pos=0, provider=False, pic
 
 	servicelist = ServiceList(eServiceReference(sRef))
 	slist = servicelist.getServicesAsList()
+	serviceHandler = eServiceCenter.getInstance()
 
+	oPos = 0
 	for sitem in slist:
+		
+		oldoPos = oPos
+		sref = sitem[0]
+		if CalcPos and 'userbouquet' in sref:
+			serviceslist = serviceHandler.list(eServiceReference(sref))
+			sfulllist = serviceslist and serviceslist.getContent("RN", True)
+			for citem in sfulllist:
+				sref = citem[0].toString()
+				hs = (int(sref.split(":")[1]) & 512)
+				sp = (sref[:7] == '1:832:D') or (sref[:7] == '1:832:1') or (sref[:6] == '1:320:')
+				if not hs or sp:  # 512 is hidden service on sifteam image. Doesn't affect other images
+					oPos = oPos + 1
+					if not sp and citem[0].flags & eServiceReference.isMarker:
+						oPos = oPos - 1
+
 		st = int(sitem[0].split(":")[1])
-		if (sitem[0][:7] == '1:832:D') or (not (st & 512) and not (st & 64)):
+		sp = (sitem[0][:7] == '1:832:D') or (sitem[0][:7] == '1:832:1') or (sitem[0][:6] == '1:320:')
+		if sp or (not (st & 512) and not (st & 64)):
 			pos = pos + 1
 		if not st & 512 or showHidden:
 			if showAll or st == 0:
 				service = {}
 				service['pos'] = 0 if (st & 64) else pos
 				sr = unicode(sitem[0], 'utf_8', errors='ignore').encode('utf_8', 'ignore')
+				if CalcPos:
+					service['startpos'] = oldoPos
 				if picon:
 					service['picon'] = getPicon(sr)
 				service['servicereference'] = sr
@@ -893,6 +922,15 @@ def getSearchEpg(sstr, endtime=None, fulldesc=False, bouquetsonly=False, encode=
 					ret.append(ev)
 			else:
 				ret.append(ev)
+
+			psref = parse_servicereference(event[7])
+			ev['service_type'] = SERVICE_TYPE_LOOKUP.get(psref.get('service_type'), "UNKNOWN")
+			nsi = psref.get('ns')
+			ns = NS_LOOKUP.get(nsi, "DVB-S")
+			if ns == "DVB-S":
+				ev['ns'] = getOrb(nsi >> 16 & 0xFFF)
+			else:
+				ev['ns'] = ns
 
 	return {"events": ret, "result": True}
 
